@@ -7,14 +7,44 @@
 
 using namespace std;
 
-//definições
-#define BOARDSIZE 10        //tamanho do tabuleiro N x N (10 x 10)
-int P_BOATSAMT = 15;        //quantidade de barcos pequenos
-int M_BOATSAMT = 7;         //quantidade de barcos médios
-int G_BOATSAMT = 3;         //quantidade de barcos grandes
-int TOBEBEATEN = 5;         //barcos que precisam ser afundados para ganhar
-int MAXATP = 10;            //número inicial de chances
-string modeselected = "NORMAL"; //dificuldade padrão (com o número de barcos acima)
+//pontuações
+#define P_SCORE 10      //afundar barco pequeno
+#define M_SCORE 30      //afundar barco médio
+#define G_SCORE 100     //afundar barco grande
+
+//dificuldade padrão
+#define BOARDSIZE       10  // tamanho do tabuleiro N x N //este não será alterado durante a execução
+#define P_BOATDEFAULT   15  //barcos pequenos
+#define M_BOATDEFAULT   7   //barcos médios
+#define G_BOATDEFAULT   3   //barcos grandes
+#define TOWINDEFAULT    5   //necessários para ganhar
+#define MAXATPDEFAULT   10  //chances de errar
+#define DEFAULTMODE     "NORMAL"
+
+//dificuldade fácil
+#define P_EASY          15
+#define M_EASY          10
+#define G_EASY          5
+#define TOWIN_EASY      3
+#define MAXATP_EASY     12
+#define MODEEASY        "FÁCIL"
+
+//dificuldade difícil
+#define P_HARD          8
+#define M_HARD          3
+#define G_HARD          1
+#define TOWIN_HARD      5
+#define MAXATP_HARD     10
+#define MODEHARD        "DIFÍCIL"
+
+
+//configurações iniciais de dificuldade
+int P_BOATSAMT = P_BOATDEFAULT;         //quantidade de barcos pequenos
+int M_BOATSAMT = M_BOATDEFAULT;         //quantidade de barcos médios
+int G_BOATSAMT = G_BOATDEFAULT;         //quantidade de barcos grandes
+int TOBEBEATEN = TOWINDEFAULT;          //barcos que precisam ser afundados para ganhar
+int MAXATP     = MAXATPDEFAULT;         //número inicial de chances
+string modeselected = DEFAULTMODE;      //dificuldade padrão (com o número de barcos acima)
 
 //funções
 int      intro();   //tela incial
@@ -49,11 +79,14 @@ int main(){
                 break;
             case 4: mode();
                 break;
+            case 5:
+                cout << "\n\nAté mais!\n\n\n\n";
+                system("PAUSE");
         }
 
-    }while(option < 1 || option > 4);
+    }while(option < 1 || option > 5);
 
-    return 666; //este programa é satânico
+    return 1;
 }
 
 //-------------------------------------------------
@@ -136,7 +169,7 @@ int intro(){
     int opt;
 
     //menu
-    cout << "Bem-Vindo à Batalha Naval 1.1\n";
+    cout << "Bem-Vindo à Batalha Naval 1.2\n";
     cout << "Você está na dificuldade " << modeselected;
     cout << "\n_______________________________\n\n";
     cout << "1 - JOGAR\n";
@@ -219,9 +252,8 @@ void boats(char board[BOARDSIZE][BOARDSIZE]){
         L = rand() % BOARDSIZE;
         C = rand() % BOARDSIZE;
 
-        if(board[L][C] != 'A') i--;
-
-        board[L][C] = 'P';
+        if(board[L][C] != 'A') i--; //caso posição seja diferente de água (ou seja, tenha barco), a função sorteia mais 1x
+        else board[L][C] = 'P';
     }
 
     //barcos médios
@@ -229,11 +261,11 @@ void boats(char board[BOARDSIZE][BOARDSIZE]){
         L = rand() % BOARDSIZE;
         C = rand() % BOARDSIZE;
 
-        if(board[L][C] != 'A' || board[L][C-1] != 'A' || board[L][C+1] != 'A') i--;
+        if(board[L][C] != 'A' || board[L][C-1] != 'A' || board[L][C+1] != 'A') i--; //caso a posição seguinte ou anterior esteja ocupada
         else{
             board[L][C] = 'M';
-            if(C == BOARDSIZE-1) board[L][C-1] = 'M';
-            else board[L][C+1] = 'M';
+            if(C == BOARDSIZE-1) board[L][C-1] = 'M'; //se a posição sorteada for na borda da mesa, a outra metade do barco fica uma posição atrás
+            else board[L][C+1] = 'M'; //se não, a outra metade fica uma posição a frente
         }
     }
 
@@ -245,7 +277,7 @@ void boats(char board[BOARDSIZE][BOARDSIZE]){
         if(board[L][C] != 'A' || board[L][C-1] != 'A' || board[L][C-2] != 'A' || board[L][C+1] != 'A' || board[L][C+2] != 'A') i--;
         else{
             board[L][C] = 'G';
-            if(C == BOARDSIZE-1 || C == BOARDSIZE-2){
+            if(C >= BOARDSIZE-2){
                 board[L][C-1] = 'G';
                 board[L][C-2] = 'G';
             }
@@ -261,19 +293,21 @@ void boats(char board[BOARDSIZE][BOARDSIZE]){
 //verifica o tiro
 bool checkShoot(char board[BOARDSIZE][BOARDSIZE],char masked[BOARDSIZE][BOARDSIZE], int L, int C, int *score, string *msg, int *boats){
 
-
     switch(board[L][C]){
         case 'P':
-            *score = *score + 10;
-            *msg = "Afundou um barco pequeno(10pts)\n";
+            *score = *score + P_SCORE;
+            *msg = "Afundou um barco pequeno\n";
             *boats = *boats + 1;
             return false;
             break;
 
         case 'M':
+            //há um pequeno erro aqui, se houverem 2 barcos médios um do lado do outro, serão contabilizados 3
+            //as duas metades do primeiro, metade do primeiro e metade do segundo e as duas metades do segundo
+            //infelizmente não sei como corrigir
             if(masked[L][C+1] == 'M' || masked[L][C-1] == 'M'){
-                *msg = "Afundou um barco médio(30pts)\n";
-                *score = *score + 30;
+                *msg = "Afundou um barco médio\n";
+                *score = *score + M_SCORE;
                 *boats = *boats + 1;
             }
             else{
@@ -283,11 +317,13 @@ bool checkShoot(char board[BOARDSIZE][BOARDSIZE],char masked[BOARDSIZE][BOARDSIZ
             break;
 
         case 'G':
+            //o erro anterior se repete aqui, no caso 2 barcos viram 4
             if((masked[L][C+1] == 'G' && masked[L][C+2] == 'G') ||
                 (masked[L][C-1] == 'G' && masked[L][C-2] == 'G') ||
                 (masked[L][C+1] == 'G' && masked[L][C-1] == 'G')){
-                *msg = "Afundou um barco grande(100pts)\n";
-                *score = *score + 100;
+
+                *msg = "Afundou um barco grande\n";
+                *score = *score + G_SCORE;
                 *boats = *boats + 1;
             }
             else{
@@ -314,36 +350,27 @@ void mode(){
 
     switch(MODE){
     case 1:
-        modeselected = "FÁCIL";
-        P_BOATSAMT = 15;    //barcos pequenos
-        M_BOATSAMT = 10;    //barcos médios
-        G_BOATSAMT = 5;     //barcos grandes
-        TOBEBEATEN = 3;     //necessários para ganhar
-        MAXATP = 12;        //chances
-        break;
-    case 2:
-        modeselected = "NORMAL";
-        P_BOATSAMT = 15;
-        M_BOATSAMT = 7;
-        G_BOATSAMT = 3;
-        TOBEBEATEN = 5;
-        MAXATP = 10;
+        modeselected    = MODEEASY;
+        P_BOATSAMT      = M_EASY;
+        G_BOATSAMT      = G_EASY;
+        TOBEBEATEN      = TOWIN_EASY;
+        MAXATP          = MAXATP_EASY;
         break;
     case 3:
-        modeselected = "DIFICIL";
-        P_BOATSAMT = 8;
-        M_BOATSAMT = 3;
-        G_BOATSAMT = 1;
-        TOBEBEATEN = 5;
-        MAXATP = 10;
+        modeselected    = MODEHARD;
+        P_BOATSAMT      = P_HARD;
+        M_BOATSAMT      = M_HARD;
+        G_BOATSAMT      = G_HARD;
+        TOBEBEATEN      = TOWIN_HARD;
+        MAXATP          = MAXATP_HARD;
         break;
-    default:
-        P_BOATSAMT = 15;
-        M_BOATSAMT = 7;
-        G_BOATSAMT = 3;
-        TOBEBEATEN = 5;
-        MAXATP = 10;
-        modeselected = "NORMAL";
+    default:    //caso coloque 2 ou qualquer outra coisa, volta pro modo padrão
+        modeselected    = DEFAULTMODE;
+        P_BOATSAMT      = P_BOATDEFAULT;
+        M_BOATSAMT      = M_BOATDEFAULT;
+        G_BOATSAMT      = G_BOATDEFAULT;
+        TOBEBEATEN      = TOWINDEFAULT;
+        MAXATP          = MAXATPDEFAULT;
     }
 
     system("CLS");
@@ -371,7 +398,7 @@ void howToPlay(){
 
 void about(){
     cout << "Desenvolvido por Emanoel Rodrigues\n";
-    cout << "Data da build: 01/12/2020\n\n\n";
+    cout << "Data da build: 02/12/2020\n\n\n";
     cout << "Curso: Linguagem C e C++ - Iniciante Ao Avançado por OneDay Code.\n\n";
 
     system("PAUSE");
